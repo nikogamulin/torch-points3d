@@ -29,9 +29,6 @@ dimension_max = 305
 NUM_WORKERS = 0
 BATCH_SIZE = 12
 
-# TODO: set your dataset path
-DATASET_PATH = '/home/niko/Data/superquadrics/sq_dataset_regression.pkl'
-
 from torch_points3d.metrics.colored_tqdm import Coloredtqdm as Ctq
 
 def train_epoch(device):
@@ -201,6 +198,10 @@ class SuperQuadricsRegressionShapeDataset(BaseDataset):
 if __name__ == '__main__':
     USE_NORMAL = True  # @param {type:"boolean"}
     DIR = ""
+    # TODO: configure your paths
+    DATASET_PATH = ''
+    MODELS_PATH = ''
+    logdir = ""
     yaml_config = """
     task: classification
     class: modelnet.ModelNetDataset
@@ -253,7 +254,7 @@ if __name__ == '__main__':
     )
     print(next(iter(dataset.test_dataloaders[0])))
     # Setup the tracker and actiavte tensorboard loging
-    logdir = "/home/niko/workspace/torch-points3d/runs"
+    
     logdir = os.path.join(logdir, str(datetime.datetime.now()))
     os.mkdir(logdir)
     os.chdir(logdir)
@@ -269,4 +270,4 @@ if __name__ == '__main__':
         test_epoch('cuda')
         tracker.publish(i)
         if i % 10 == 0:
-            torch.save(model.state_dict(), f'/home/niko/workspace/torch-points3d/saved_models/classification_{i}_dict_model.pt')
+            torch.save(model.state_dict(), f'{MODELS_PATH}/regression_{i}_dict_model.pt')
