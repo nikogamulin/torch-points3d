@@ -5,7 +5,6 @@ import pickle
 import torch
 from tqdm import tqdm
 import sys
-sys.path.append("/home/niko/workspace/torch-points3d/torch_points3d/datasets/utils/")
 import random
 import os
 
@@ -16,7 +15,7 @@ from torch_geometric.data import Data
 from tqdm import tqdm
 
 from torch_points3d.metrics.classification_tracker import ClassificationTracker
-from torch_points3d.metrics.regression_tracker import RegressionTracker
+from torch_points3d.metrics.superquadrics_regression_tracker import SuperquadricsRegressionTracker
 from superquadric_generator import Superquadric
 from torch_points3d.datasets.base_dataset import BaseDataset
 
@@ -29,6 +28,9 @@ dimension_max = 305
 
 NUM_WORKERS = 0
 BATCH_SIZE = 12
+
+# TODO: set your dataset path
+DATASET_PATH = '/home/niko/Data/superquadrics/sq_dataset_regression.pkl'
 
 from torch_points3d.metrics.colored_tqdm import Coloredtqdm as Ctq
 
@@ -233,15 +235,13 @@ if __name__ == '__main__':
 
     from omegaconf import OmegaConf
     params = OmegaConf.create(yaml_config)
-    GENERATE_DATASET = False
-    if GENERATE_DATASET:
-        dataset = SuperQuadricsRegressionShapeDataset(params)
-        with open(f'/home/niko/workspace/torch-points3d/torch_points3d/data/sq_dataset_regression.pkl', 'wb') as output:
-            pickle.dump(dataset, output, pickle.HIGHEST_PROTOCOL)
-    else:
-        with open(f'/home/niko/workspace/torch-points3d/torch_points3d/data/sq_dataset_regression.pkl', 'rb') as input:
+    if os.path.isfile(DATASET_PATH):
+        with open(DATASET_PATH, 'rb') as input:
             dataset = pickle.load(input)
-    print(dataset)
+    else:
+        dataset = SuperQuadricsRegressionShapeDataset(params)
+        with open(DATASET_PATH, 'wb') as output:
+            pickle.dump(dataset, output, pickle.HIGHEST_PROTOCOL)
     # Setup the data loaders
     model = RSConvRegressor(USE_NORMAL)
     dataset.create_dataloaders(
