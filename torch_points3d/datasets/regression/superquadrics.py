@@ -181,8 +181,8 @@ class SuperQuadricsRegressionShapeDataset(BaseDataset):
     def __init__(self, dataset_opt):
         super().__init__(dataset_opt)
 
-        self.train_dataset = SuperQuadricsRegressionShape(dataset_size=40000, points_count=2048, dimension_max=305, transform=self.train_transform)
-        self.test_dataset = SuperQuadricsRegressionShape(dataset_size=5000, points_count=2048, dimension_max=305, transform=self.test_transform)
+        self.train_dataset = SuperQuadricsRegressionShape(dataset_size=1000, points_count=2048, dimension_max=305, transform=self.train_transform)
+        self.test_dataset = SuperQuadricsRegressionShape(dataset_size=1000, points_count=2048, dimension_max=305, transform=self.test_transform)
 
     def get_tracker(self, wandb_log: bool, tensorboard_log: bool):
         """Factory method for the tracker
@@ -192,7 +192,7 @@ class SuperQuadricsRegressionShapeDataset(BaseDataset):
         Returns:
             [BaseTracker] -- tracker
         """
-        return RegressionTracker(self, wandb_log=wandb_log, use_tensorboard=tensorboard_log)
+        return SuperquadricsRegressionTracker(self, wandb_log=wandb_log, use_tensorboard=tensorboard_log)
 
 
 if __name__ == '__main__':
@@ -214,25 +214,10 @@ if __name__ == '__main__':
     train_transforms:
         - transform: FixedPoints
           lparams: [2048]
-        - transform: RandomNoise
-        - transform: RandomRotate
-          params:
-            degrees: 180
-            axis: 2
-        - transform: AddFeatsByKeys
-          params:
-            feat_names: [norm]
-            list_add_to_x: [%r]
-            delete_feats: [True]
     test_transforms:
         - transform: FixedPoints
           lparams: [2048]
-        - transform: AddFeatsByKeys
-          params:
-            feat_names: [norm]
-            list_add_to_x: [%r]
-            delete_feats: [True]
-    """ % (os.path.join(DIR, "data"), USE_NORMAL, USE_NORMAL)
+    """ % (os.path.join(DIR, "data"))
 
     from omegaconf import OmegaConf
     params = OmegaConf.create(yaml_config)
@@ -269,5 +254,5 @@ if __name__ == '__main__':
         tracker.publish(i)
         test_epoch('cuda')
         tracker.publish(i)
-        if i % 10 == 0:
+        if i % 50 == 0:
             torch.save(model.state_dict(), f'{MODELS_PATH}/regression_{i}_dict_model.pt')
