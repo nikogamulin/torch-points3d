@@ -112,8 +112,10 @@ class RSConvRegressor(torch.nn.Module):
         self.output = data_out.x.squeeze()
 
         # Set loss for the backward pass
-        # self.loss_class = torch.nn.functional.MSE(self.output, self.labels)
-        self.loss = self.loss_function(self.labels, self.output)
+        # normalize axis and offset values
+        labels_normalized = torch.cat([self.labels[:, 0:3]/sq_dimensions_range[1], self.labels[:, 3:5], self.labels[:, 5:]/dimension_max], dim=1)
+        output_normalized = torch.cat([self.output[:, 0:3]/sq_dimensions_range[1], self.output[:, 3:5], self.output[:, 5:]/dimension_max], dim=1)
+        self.loss = self.loss_function(labels_normalized, output_normalized)
 
     def backward(self):
         self.loss.backward()
@@ -181,8 +183,8 @@ class SuperQuadricsRegressionShapeDataset(BaseDataset):
     def __init__(self, dataset_opt):
         super().__init__(dataset_opt)
 
-        self.train_dataset = SuperQuadricsRegressionShape(dataset_size=1000, points_count=2048, dimension_max=305, transform=self.train_transform)
-        self.test_dataset = SuperQuadricsRegressionShape(dataset_size=1000, points_count=2048, dimension_max=305, transform=self.test_transform)
+        self.train_dataset = SuperQuadricsRegressionShape(dataset_size=20000, points_count=2048, dimension_max=305, transform=self.train_transform)
+        self.test_dataset = SuperQuadricsRegressionShape(dataset_size=4000, points_count=2048, dimension_max=305, transform=self.test_transform)
 
     def get_tracker(self, wandb_log: bool, tensorboard_log: bool):
         """Factory method for the tracker
@@ -199,9 +201,9 @@ if __name__ == '__main__':
     USE_NORMAL = True  # @param {type:"boolean"}
     DIR = ""
     # TODO: configure your paths
-    DATASET_PATH = ''
-    MODELS_PATH = ''
-    logdir = ""
+    DATASET_PATH = '/home/niko/Data/superquadrics/sq_dataset_regression_v2.pkl'
+    MODELS_PATH = '/home/niko/workspace/torch-points3d/saved_models'
+    logdir = "/home/niko/workspace/torch-points3d/runs"
     yaml_config = """
     task: classification
     class: modelnet.ModelNetDataset
