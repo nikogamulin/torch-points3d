@@ -178,6 +178,70 @@ class SuperQuadricsRegressionShape(Dataset):
         y = torch.from_numpy(self.y[idx]).double()
         return Data(norm=norm, x=norm, pos=pos, y=y)
 
+class SuperQuadricsRegressionShapeMulti(Dataset):
+    def __init__(self, dataset_size, points_count, dimension_max, do_normalize=True, transform=None):
+        """
+        Args:
+            number of superquadrics to be gnerated.
+        """
+        super().__init__()
+
+        used_combinations = []
+        self.id2params = {}
+        self.pos = []
+        self.norm = []
+        self.ids = []
+        pbar = tqdm(total=dataset_size)
+        id = 0
+        records_count = 0
+        while id < dataset_size:
+            # generate 1-5 shapes and store them in the same record
+            shapes_count_current = random.randrange(1, 6)
+            points = []
+            normals = []
+            ids = []
+            for i in range(shapes_count_current):
+                combination_is_valid = False
+                while not combination_is_valid:
+                    a1, a2, a3, e1, e2, x0, y0, z0 = get_random_superquadric_parameters()
+                    current_parameters_str = '{}#{}#{}#{}#{}#{}#{}#{}'.format(a1, a2, a3, e1, e2, x0, y0, z0)
+                    if current_parameters_str not in used_combinations:
+                        combination_is_valid = True
+                used_combinations.append(current_parameters_str)
+                superquadric = Superquadric(a1, a2, a3, e1, e2, x0, y0, z0, dimension_max)
+                try:
+                    points_current, normals_current = superquadric.get_grid(points_count)
+                    if do_normalize:
+                        max_offset = sq_dimensions_range[1] + sq_offset_range[1]
+                        points_current = list(map(lambda x: [item / max_offset for item in x], points_current))
+                    points += points_current
+                    normals += normals_current
+                    ids += [id] * len(points_current)
+
+                    self.id2params[id] = np.array([a1, a2, a3, e1, e2, x0, y0, z0])
+                    id += 1
+
+                except:
+                    continue
+            self.pos.append(np.array(points))
+            self.norm.append(np.array(normals))
+            self.ids.append(ids)
+            records_count += 1
+            pbar.update(1)
+        pbar.close()
+
+    def __len__(self):
+        return len(self.pos)
+
+    def __getitem__(self, idx):
+        if torch.is_tensor(idx):
+            idx = idx.tolist()
+
+        norm = torch.from_numpy(self.norm[idx]).float()
+        pos = torch.from_numpy(self.pos[idx]).float()
+        y = torch.from_numpy(np.array(list((map(lambda x: self.id2params[x], self.ids[0])))))
+        return Data(norm=norm, x=norm, pos=pos, y=y)
+
 
 class SuperQuadricsRegressionShapeDataset(BaseDataset):
     def __init__(self, dataset_opt):
@@ -185,6 +249,23 @@ class SuperQuadricsRegressionShapeDataset(BaseDataset):
 
         self.train_dataset = SuperQuadricsRegressionShape(dataset_size=20000, points_count=2048, dimension_max=305, transform=self.train_transform)
         self.test_dataset = SuperQuadricsRegressionShape(dataset_size=4000, points_count=2048, dimension_max=305, transform=self.test_transform)
+
+    def get_tracker(self, wandb_log: bool, tensorboard_log: bool):
+        """Factory method for the tracker
+        Arguments:
+            wandb_log - Log using weight and biases
+            tensorboard_log - Log using tensorboard
+        Returns:
+            [BaseTracker] -- tracker
+        """
+        return SuperquadricsRegressionTracker(self, wandb_log=wandb_log, use_tensorboard=tensorboard_log)
+
+class SuperQuadricsRegressionShapeMultiDataset(BaseDataset):
+    def __init__(self, dataset_opt):
+        super().__init__(dataset_opt)
+
+        self.train_dataset = SuperQuadricsRegressionShapeMulti(dataset_size=20, points_count=2048, dimension_max=305, transform=self.train_transform)
+        self.test_dataset = SuperQuadricsRegressionShapeMulti(dataset_size=4, points_count=2048, dimension_max=305, transform=self.test_transform)
 
     def get_tracker(self, wandb_log: bool, tensorboard_log: bool):
         """Factory method for the tracker
@@ -212,7 +293,7 @@ if __name__ == '__main__':
     pre_transforms:
         - transform: NormalizeScale
         - transform: GridSampling3D
-          lparams: [0.02]
+          lparams: [0.005]
     train_transforms:
         - transform: FixedPoints
           lparams: [2048]
@@ -227,7 +308,7 @@ if __name__ == '__main__':
         with open(DATASET_PATH, 'rb') as input:
             dataset = pickle.load(input)
     else:
-        dataset = SuperQuadricsRegressionShapeDataset(params)
+        dataset = SuperQuadricsRegressionShapeMultiDataset(params)
         with open(DATASET_PATH, 'wb') as output:
             pickle.dump(dataset, output, pickle.HIGHEST_PROTOCOL)
     # Setup the data loaders
